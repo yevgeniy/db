@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Console Reporter Spec</title>
+ 
+    <link rel="stylesheet" href="jasmine.css" type="text/css" />
+ 
+    <script src="jasmine.js"></script>
+    <script src="jasmine-html.js"></script>
+    <script src="jasmine.teamcity_reporter.js"></script>
+    
+    <script src='http://ajax.aspnetcdn.com/ajax/jQuery/jquery-1.7.2.min.js'></script>
+    <script src='https://github.com/typicaljoe/taffydb/raw/master/taffy.js'></script>
+	<script>
+		(function() {
+			window.require=function(){}
+		})();
+	</script>
+
+	
+<script src='./scripts/nimm-db.js'></script>
+
+<script src='/scripts/nimm-db.spec.js'></script>
+
+<!-- SCRIPTS DONE -->
+</head>
+<body>
+    <script>
+    	__hasProp = {}.hasOwnProperty,
+		__extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+		OnCompleteReporter = (function() {
+			__extends(OnCompleteReporter, jasmine.Reporter);
+			function OnCompleteReporter(){}
+			OnCompleteReporter.prototype.reportRunnerResults=function() {
+				console.log("##jasmine.reportRunnerResults");
+			}
+			return OnCompleteReporter;
+		})();
+    
+    	jasmine.getEnv().addReporter(new OnCompleteReporter());
+		jasmine.getEnv().addReporter(new jasmine.TeamcityReporter());
+        jasmine.getEnv().addReporter(new jasmine.TrivialReporter());
+        jasmine.getEnv().execute();
+    </script>
+</body>
+</html>
