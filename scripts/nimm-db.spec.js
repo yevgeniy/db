@@ -177,27 +177,41 @@ describe('Indexing...',function(){
     row=new Row();
   });
   describe('setIndex...',function(){
-    // it('...set correctly',function(){
-//       
-      // indexing.setIndex('class',IndexingType.STRING_INDEX);
-    // });
+    beforeEach(function(){
+      indexing._updateIndex=function(){};
+    });
+    it('...returns false if index already set.',function(){
+      indexing.index[IndexingType.STRING_INDEX]={
+        'foo':{}
+      };
+      
+      expect(indexing.setIndex('foo', IndexingType.STRING_INDEX)).toBe(false);
+    });
+    it('...returns true if index set.',function(){
+      expect(indexing.setIndex('foo', IndexingType.STRING_INDEX)).toBe(true);
+    })
+    it('...calls update-index', function(){
+      spyOn(indexing, '_updateIndex');
+      indexing.setIndex('class', IndexingType.STRING);
+      expect(indexing._updateIndex).toHaveBeenCalled();
+    })
   });
   describe('_updateIndex...',function(){
     describe('string...',function(){
       it('...initial set',function(){
-        indexing._updateIndex(db.first, 'class', db.first.data.class, IndexingType.STRING_INDEX);
+        indexing._updateIndex(IndexingType.STRING_INDEX, db.first, 'class', db.first.data.class);
         expect(indexing.index[IndexingType.STRING_INDEX]['class']).toBeDefined();
         expect(indexing.index[IndexingType.STRING_INDEX]['class']['soldier'][0]).toBe(db.first)
       });
       it('...initial set, row index-ref is set',function(){
-        indexing._updateIndex(db.first, 'class', db.first.data.class, IndexingType.STRING_INDEX);
+        indexing._updateIndex(IndexingType.STRING_INDEX, db.first, 'class', db.first.data.class);
         expect(db.first.__index__.class).toBe(0);
       });
       it('...when removed if no more members in collection, category is removed from index',function(){
-        indexing._updateIndex(db.first, 'class', db.first.data.class, IndexingType.STRING_INDEX);
+        indexing._updateIndex(IndexingType.STRING_INDEX, db.first, 'class', db.first.data.class);
         expect(indexing.index[IndexingType.STRING_INDEX].class.soldier.length).toBe(1);
         
-        indexing._updateIndex(db.first, 'class', 'knight', IndexingType.STRING_INDEX);
+        indexing._updateIndex(IndexingType.STRING_INDEX, db.first, 'class', 'knight', db.first.data.class);
         expect(indexing.index[IndexingType.STRING_INDEX].class.soldier).toBeUndefined();
         expect(indexing.index[IndexingType.STRING_INDEX].class.knight.length).toBe(1);
       });
@@ -206,15 +220,15 @@ describe('Indexing...',function(){
         var row2=new Row({class:'mage'});
         var row3=new Row({class:'mage'});
         
-        indexing._updateIndex(row1, 'class', 'mage', IndexingType.STRING_INDEX);
-        indexing._updateIndex(row2, 'class', 'mage', IndexingType.STRING_INDEX);
-        indexing._updateIndex(row3, 'class', 'mage', IndexingType.STRING_INDEX);
+        indexing._updateIndex(IndexingType.STRING_INDEX, row1, 'class', 'mage');
+        indexing._updateIndex(IndexingType.STRING_INDEX, row2, 'class', 'mage');
+        indexing._updateIndex(IndexingType.STRING_INDEX, row3, 'class', 'mage');
         
         expect(row1.__index__.class).toBe(0);
         expect(row2.__index__.class).toBe(1);
         expect(row3.__index__.class).toBe(2);
         
-        indexing._updateIndex(row1, 'class', 'battle-mage', IndexingType.STRING_INDEX);
+        indexing._updateIndex(IndexingType.STRING_INDEX, row1, 'class', 'battle-mage', 'mage');
         
         expect(row1.__index__.class).toBe(0);
         expect(row2.__index__.class).toBe(0);

@@ -388,9 +388,9 @@
   })();
   var IndexingType=(function(){
     function IndexingType(){}
-    IndexingType.STRING_INDEX='string-index';
-    IndexingType.NUMBER_INDEX='number-index';
-    IndexingType.RANGE_INDEX='range-index';
+    IndexingType.STRING_INDEX = IndexingType.STRING = 'string-index';
+    IndexingType.NUMBER_INDEX = IndexingType.NUMBER = 'number-index';
+    IndexingType.RANGE_INDEX = IndexingType.RANGE = 'range-index';
     return IndexingType;
   })();
   var Indexing=(function(){
@@ -398,9 +398,9 @@
       this.base=b;
       
       this.index={};
-      this.index[IndexingType.STRING_INDEX]={};
-      this.index[IndexingType.NUMBER_INDEX]={};
-      this.index[IndexingType.RANGE_INDEX]={};
+      this.index[IndexingType.STRING]={};
+      this.index[IndexingType.NUMBER]={};
+      this.index[IndexingType.RANGE]={};
     }
     
     Indexing.prototype.index=null;
@@ -409,30 +409,37 @@
       var _this=this
       ;
       if (! this.index[type][subject])
-        this.index[type][subject]=[];
+        this.index[type][subject]={};
+      else 
+        return false; /* Index already exists no need to parse. */
 
       var rows=this.base.where().selected;
       rows.forEach(function(row){
         _this._updateIndex(row,subject,row.data[subject],type);
       });
 
+      return true;
     }
-    Indexing.prototype._updateIndex=function(row,subject,value,type){
+    Indexing.prototype._updateIndex=function(type,row,subject,value,oldVal){
       var _this=this;
-      // console.log(row,subject,value)
       switch(type){
         case IndexingType.STRING_INDEX:
-          string();break;
+          string(type,row,subject,value,oldVal);break;
         case IndexingType.NUMBER_INDEX:
-          number();break;
+          number(type,row,subject,value,oldVal);break;
         case IndexingType.RANGE_INDEX:
-          range();break;
+          range(type,row,subject,value,oldVal);break;
       }
-      function string(){
+      function string(type,row,subject,value,oldVal){
         var index,oldVal;
-        if (row.__index__ && typeof (index=row.__index__[subject]) != 'undefined' ){ /* Rid the old index. */
-          oldVal = row.data[subject];
-          _this.index[type][subject][oldVal].splice(index,1); /* Still old value in row. */
+        if (  typeof oldVal != 'undefined' && 
+              row.__index__ && 
+              typeof (index=row.__index__[subject]) != 'undefined' ){ /* Rid the old index. */
+          
+          if (typeof _this.index[type][subject][oldVal] == 'undefined') /* Ensure old value is valid. */
+            throw 'Old value not found in index.';
+            
+          _this.index[type][subject][oldVal].splice(index,1);
           
           for (var i=index; i < _this.index[type][subject][oldVal].length; i++) /* Update subsequent back-references in collection. */
             _this.index[type][subject][oldVal][i].__index__[subject]=i;
@@ -455,9 +462,9 @@
 
         if (! row.__index__) /* Back reference from row. */
           row.__index__={};
-        row.__index__[subject]= _this.index[type][subject][value].length-1;
+        row.__index__[subject] = _this.index[type][subject][value].length-1;
       }
-      function number(){
+      function number(type,row,subject,value,oldVal){
         var index;
         if (row.__index__ && typeof (index=row.__index__[subject]) != 'undefined' ){ /* Rid the old index. */
           _this.index[type][subject][row.data[subject]].splice(index,1); /* Still old value in row. */
@@ -482,7 +489,7 @@
           row.__index__={};
         row.__index__[subject]= _this.index[type][subject][value].length-1;
       }
-      function range(){
+      function range(type,row,subject,value,oldVal){
         
       }
     }
