@@ -405,6 +405,7 @@
     
     Indexing.prototype.index=null;
     
+    
     Indexing.prototype.setIndex=function(subject, type){
       var _this=this
       ;
@@ -415,10 +416,21 @@
 
       var rows=this.base.where().selected;
       rows.forEach(function(row){
-        _this._updateIndex(row,subject,row.data[subject],type);
+        _this._updateIndex(type, row, subject, row.data[subject] );
       });
 
       return true;
+    }
+    Indexing.prototype.unsetIndex=function(subject, type){
+    	var _this=this
+      ;
+      if (! this.index[type][subject])
+        return false;
+
+	  var rows = this.base.where().selected;
+	  rows.forEach(function(row){
+	  	_this._updateIndex(type, row, subject, undefined, row.data[subject])
+	  });
     }
     Indexing.prototype._updateIndex=function(type,row,subject,value,oldVal){
       var _this=this;
@@ -433,8 +445,9 @@
       function string(type,row,subject,value,oldVal){
         var index,oldVal;
         if (  typeof oldVal != 'undefined' && 
-              row.__index__ && 
-              typeof (index=row.__index__[subject]) != 'undefined' ){ /* Rid the old index. */
+              row.__index__ &&
+              row.__index__[type] && 
+              typeof (index=row.__index__[type][subject]) != 'undefined' ){ /* Rid the old index. */
           
           if (typeof _this.index[type][subject][oldVal] == 'undefined') /* Ensure old value is valid. */
             throw 'Old value not found in index.';
@@ -442,13 +455,12 @@
           _this.index[type][subject][oldVal].splice(index,1);
           
           for (var i=index; i < _this.index[type][subject][oldVal].length; i++) /* Update subsequent back-references in collection. */
-            _this.index[type][subject][oldVal][i].__index__[subject]=i;
+            _this.index[type][subject][oldVal][i].__index__[type][subject]=i;
           
           if (_this.index[type][subject][oldVal].length==0) /* Remove possible empty indexing block. */
             delete _this.index[type][subject][oldVal];
             
-          if (typeof value == 'undefined') /* Removed undefined subjects from row back-references. */
-            delete row.__index__[subject];          
+          delete row.__index__[type][subject];          
         }
         
         if (typeof value != 'string')
@@ -462,32 +474,12 @@
 
         if (! row.__index__) /* Back reference from row. */
           row.__index__={};
-        row.__index__[subject] = _this.index[type][subject][value].length-1;
+        if (! row.__index__[type])
+          row.__index__[type]={};
+        row.__index__[type][subject] = _this.index[type][subject][value].length-1;
       }
       function number(type,row,subject,value,oldVal){
-        var index;
-        if (row.__index__ && typeof (index=row.__index__[subject]) != 'undefined' ){ /* Rid the old index. */
-          _this.index[type][subject][row.data[subject]].splice(index,1); /* Still old value in row. */
-          
-          for (var i=index; i < _this.index[type][subject][row.data[subject]].length; i++) /* Update subsequent back-references in collection. */
-            _this.index[type][subject][row.data[subject]][i].__index__[subject]=i;
-          
-          if (_this.index[type][subject][row.data[subject]].length==0) /* Remove possible empty indexing block. */
-            delete _this.index[type][subject][row.data[subject]];          
-        }
-        
-        if (typeof value != 'number')
-          return;
-        
-        if (! _this.index[type][subject]) /* Insert new index record. */
-          _this.index[type][subject]={};
-        if (! _this.index[type][subject][value])
-          _this.index[type][subject][value]=[];
-        _this.index[type][subject][value].push(row);
 
-        if (! row.__index__) /* Back reference from row. */
-          row.__index__={};
-        row.__index__[subject]= _this.index[type][subject][value].length-1;
       }
       function range(type,row,subject,value,oldVal){
         

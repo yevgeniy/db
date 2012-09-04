@@ -194,7 +194,36 @@ describe('Indexing...',function(){
       spyOn(indexing, '_updateIndex');
       indexing.setIndex('class', IndexingType.STRING);
       expect(indexing._updateIndex).toHaveBeenCalled();
+    });
+    it('...calls update-index for each row', function(){
+      spyOn(indexing, '_updateIndex');
+      indexing.setIndex('class', IndexingType.STRING);
+      expect(indexing._updateIndex.argsForCall.length).toBe(2);
+      
+      expect(indexing._updateIndex.argsForCall[0][1].data.class).toEqual('soldier');
+      expect(indexing._updateIndex.argsForCall[1][1].data.class).toEqual('wizzard');
     })
+  });
+  describe('unsetIndex', function(){
+  	beforeEach(function(){
+	  indexing.setIndex('class', IndexingType.STRING);
+  	});
+  	it('...if not indexed return false', function(){
+	  expect(indexing.unsetIndex('race', IndexingType.STRING)).toBe(false);
+  	})
+  	it('...clears index on row', function(){
+	  indexing.unsetIndex('class', IndexingType.STRING);
+
+  	  expect(db.first.__index__[IndexingType.STRING].class).toBeUndefined();
+  	  expect(db.first.next.__index__[IndexingType.STRING].class).toBeUndefined();
+  	})
+  	it('...clears index in indexing', function(){
+	  indexing.unsetIndex('class', IndexingType.STRING);
+  		
+	  expect(indexing.index[IndexingType.STRING].class.soldier).toBeUndefined();
+	  expect(indexing.index[IndexingType.STRING].class.wizzard).toBeUndefined();
+  	});
+  	
   });
   describe('_updateIndex...',function(){
     describe('string...',function(){
@@ -205,7 +234,7 @@ describe('Indexing...',function(){
       });
       it('...initial set, row index-ref is set',function(){
         indexing._updateIndex(IndexingType.STRING_INDEX, db.first, 'class', db.first.data.class);
-        expect(db.first.__index__.class).toBe(0);
+        expect(db.first.__index__[IndexingType.STRING].class).toBe(0);
       });
       it('...when removed if no more members in collection, category is removed from index',function(){
         indexing._updateIndex(IndexingType.STRING_INDEX, db.first, 'class', db.first.data.class);
@@ -224,15 +253,15 @@ describe('Indexing...',function(){
         indexing._updateIndex(IndexingType.STRING_INDEX, row2, 'class', 'mage');
         indexing._updateIndex(IndexingType.STRING_INDEX, row3, 'class', 'mage');
         
-        expect(row1.__index__.class).toBe(0);
-        expect(row2.__index__.class).toBe(1);
-        expect(row3.__index__.class).toBe(2);
+        expect(row1.__index__[IndexingType.STRING_INDEX].class).toBe(0);
+        expect(row2.__index__[IndexingType.STRING_INDEX].class).toBe(1);
+        expect(row3.__index__[IndexingType.STRING_INDEX].class).toBe(2);
         
         indexing._updateIndex(IndexingType.STRING_INDEX, row1, 'class', 'battle-mage', 'mage');
         
-        expect(row1.__index__.class).toBe(0);
-        expect(row2.__index__.class).toBe(0);
-        expect(row3.__index__.class).toBe(1);
+        expect(row1.__index__[IndexingType.STRING].class).toBe(0);
+        expect(row2.__index__[IndexingType.STRING].class).toBe(0);
+        expect(row3.__index__[IndexingType.STRING].class).toBe(1);
         
       })
     });
