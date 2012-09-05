@@ -162,6 +162,55 @@ describe('DB', function(){
     expect(db.first.data.class).toBe('barbarian');
     expect(db.last.data.class).toBe('wizzard');
   })
+  describe('insert...',function(){
+  	it('...new indexing created for each row', function(){
+	  db.indexing.setIndex('class', IndexingType.STRING);
+  		
+  	  spyOn(db.indexing, 'insert');
+  		
+  	  db.insert([
+	    {id:1, class:'soldier', race:'ork'},
+	    {id:2, class:'wizzard', race:'elf'},	
+  	  ]);
+  	  
+  	  expect(db.indexing.insert.argsForCall[0]).toBeDefined();
+  	  expect(db.indexing.insert.argsForCall[1]).toBeDefined();
+  	  
+  	  expect(db.indexing.insert.argsForCall[0][0]).toBe(db.first);
+  	  expect(db.indexing.insert.argsForCall[0][1]).toBe('class');
+  	  
+  	  expect(db.indexing.insert.argsForCall[1][0]).toBe(db.first.next);
+  	  expect(db.indexing.insert.argsForCall[0][1]).toBe('class');
+  	  
+  	});
+  });
+  describe('update...',function(){
+  	it('...value updated for each row', function(){
+	  db.indexing.setIndex('class', IndexingType.STRING);
+
+	  spyOn(db.indexing, 'update');
+
+	  db.insert([
+        {id:1, class:'soldier', race:'ork'},
+        {id:2, class:'wizzard', race:'elf'},	
+      ]);
+      
+      db.update({
+      	class:'lord'
+      });
+      
+      expect(db.indexing.update.argsForCall[0]).toBeDefined();
+      expect(db.indexing.update.argsForCall[1]).toBeDefined();
+      
+      expect(db.indexing.update.argsForCall[0][0]).toBe(db.first);
+      expect(db.indexing.update.argsForCall[0][1]).toBe('class');
+      expect(db.indexing.update.argsForCall[0][2]).toBe('lord');
+      
+      expect(db.indexing.update.argsForCall[1][0]).toBe(db.first.next);
+      expect(db.indexing.update.argsForCall[1][1]).toBe('class');
+      expect(db.indexing.update.argsForCall[1][2]).toBe('lord');
+  	});
+  });
 })
 
 describe('Indexing...',function(){
@@ -181,14 +230,14 @@ describe('Indexing...',function(){
       indexing._updateIndex=function(){};
     });
     it('...returns false if index already set.',function(){
-      indexing.index[IndexingType.STRING_INDEX]={
-        'foo':{}
+      indexing.index.foo={
+        'string':{}
       };
       
-      expect(indexing.setIndex('foo', IndexingType.STRING_INDEX)).toBe(false);
+      expect(indexing.setIndex('foo', 'string')).toBe(false);
     });
     it('...returns true if index set.',function(){
-      expect(indexing.setIndex('foo', IndexingType.STRING_INDEX)).toBe(true);
+      expect(indexing.setIndex('foo', 'string')).toBe(true);
     })
     it('...calls update-index', function(){
       spyOn(indexing, '_updateIndex');
@@ -214,35 +263,56 @@ describe('Indexing...',function(){
   	it('...clears index on row', function(){
 	  indexing.unsetIndex('class', IndexingType.STRING);
 
-  	  expect(db.first.__index__[IndexingType.STRING].class).toBeUndefined();
-  	  expect(db.first.next.__index__[IndexingType.STRING].class).toBeUndefined();
+  	  expect(db.first.__index__).toBeUndefined();
+  	  expect(db.first.next.__index__).toBeUndefined();
   	})
   	it('...clears index in indexing', function(){
 	  indexing.unsetIndex('class', IndexingType.STRING);
   		
-	  expect(indexing.index[IndexingType.STRING].class.soldier).toBeUndefined();
-	  expect(indexing.index[IndexingType.STRING].class.wizzard).toBeUndefined();
+	  expect(indexing.index.class).toBeUndefined();
   	});
   	
+  });
+  describe('update...',function(){
+  	beforeEach(function(){
+	  indexing.setIndex('class', IndexingType.STRING);
+  	});
+  	it('...throws error if subject does not exist', function(){
+  		expect(function(){
+  			indexing.update(db.first, 'race', 'ork')
+  		}).toThrow('Non existing subject.');
+  	});
+  	it('...updating row subject results in correct, return index, and indexing system.', function(){
+  		var row = db.first;
+  		indexing.update(row, 'class', 'fighter');
+  		
+  		
+  		expect(indexing.index.class[IndexingType.STRING].soldier).toBeUndefined();
+  		expect(indexing.index.class[IndexingType.STRING].fighter).toBeDefined();
+  		expect(indexing.index.class[IndexingType.STRING].fighter.length).toBe(1);
+  		
+  		expect(row.__index__.class[IndexingType.STRING]).toBe(0);
+  	});
   });
   describe('_updateIndex...',function(){
     describe('string...',function(){
       it('...initial set',function(){
         indexing._updateIndex(IndexingType.STRING_INDEX, db.first, 'class', db.first.data.class);
-        expect(indexing.index[IndexingType.STRING_INDEX]['class']).toBeDefined();
-        expect(indexing.index[IndexingType.STRING_INDEX]['class']['soldier'][0]).toBe(db.first)
+        expect(indexing.index['class'][IndexingType.STRING_INDEX]).toBeDefined();
+        expect(indexing.index['class'][IndexingType.STRING_INDEX]['soldier'][0]).toBe(db.first)
       });
       it('...initial set, row index-ref is set',function(){
         indexing._updateIndex(IndexingType.STRING_INDEX, db.first, 'class', db.first.data.class);
-        expect(db.first.__index__[IndexingType.STRING].class).toBe(0);
+        expect(db.first.__index__.class[IndexingType.STRING]).toBe(0);
       });
       it('...when removed if no more members in collection, category is removed from index',function(){
         indexing._updateIndex(IndexingType.STRING_INDEX, db.first, 'class', db.first.data.class);
-        expect(indexing.index[IndexingType.STRING_INDEX].class.soldier.length).toBe(1);
+        expect(indexing.index.class[IndexingType.STRING_INDEX].soldier.length).toBe(1);
         
         indexing._updateIndex(IndexingType.STRING_INDEX, db.first, 'class', 'knight', db.first.data.class);
-        expect(indexing.index[IndexingType.STRING_INDEX].class.soldier).toBeUndefined();
-        expect(indexing.index[IndexingType.STRING_INDEX].class.knight.length).toBe(1);
+        
+        expect(indexing.index.class[IndexingType.STRING_INDEX].soldier).toBeUndefined();
+        expect(indexing.index.class[IndexingType.STRING_INDEX].knight.length).toBe(1);
       });
       it('...updating indexes, decraments collection members',function(){
         var row1=new Row({class:'mage'});
@@ -253,15 +323,15 @@ describe('Indexing...',function(){
         indexing._updateIndex(IndexingType.STRING_INDEX, row2, 'class', 'mage');
         indexing._updateIndex(IndexingType.STRING_INDEX, row3, 'class', 'mage');
         
-        expect(row1.__index__[IndexingType.STRING_INDEX].class).toBe(0);
-        expect(row2.__index__[IndexingType.STRING_INDEX].class).toBe(1);
-        expect(row3.__index__[IndexingType.STRING_INDEX].class).toBe(2);
+        expect(row1.__index__.class[IndexingType.STRING_INDEX]).toBe(0);
+        expect(row2.__index__.class[IndexingType.STRING_INDEX]).toBe(1);
+        expect(row3.__index__.class[IndexingType.STRING_INDEX]).toBe(2);
         
         indexing._updateIndex(IndexingType.STRING_INDEX, row1, 'class', 'battle-mage', 'mage');
         
-        expect(row1.__index__[IndexingType.STRING].class).toBe(0);
-        expect(row2.__index__[IndexingType.STRING].class).toBe(0);
-        expect(row3.__index__[IndexingType.STRING].class).toBe(1);
+        expect(row1.__index__.class[IndexingType.STRING]).toBe(0);
+        expect(row2.__index__.class[IndexingType.STRING]).toBe(0);
+        expect(row3.__index__.class[IndexingType.STRING]).toBe(1);
         
       })
     });
