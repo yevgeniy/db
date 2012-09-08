@@ -10,6 +10,18 @@ describe('DB', function(){
   beforeEach(function(){
     db = new DB();
   })
+  describe('normalize-complex', function(){
+    var complex;
+    beforeEach(function(){
+      complex1 = {class:'knight', lvl:17, hit:{isFunction:true}};
+    })
+    it('...calls noramilze-predicate on all subject predicates', function(){
+      spyOn(db, '_normalizePredicate');
+      db._normalizeComplex(complex1);
+      
+      expect(db._normalizePredicate.argsForCall.length).toBe(3); 
+    })
+  })
   it('...normalize-query returns array', function(){
     var q = {foo:1};
     var res = db._normalizeQuery(q);
@@ -52,11 +64,6 @@ describe('DB', function(){
     })
   })
   describe('test-predicate', function(){
-    it('...normalize conjunct is called', function(){
-      spyOn(db, '_normalizeConjunct')
-      db._testPredicate( [4], 4 );
-      expect(db._normalizeConjunct).toHaveBeenCalled();
-    })
     it('...single member test', function(){
       expect(db._testPredicate( [4], 4 )).toBe(true);
     });
@@ -65,29 +72,36 @@ describe('DB', function(){
     });
   });
   describe('normalize-predicate', function(){
-    it('...single entry, returns array', function(){
+    it('...single entry, returns normalized array', function(){
       var res = db._normalizePredicate(4);
-      expect(res[0]).toBe(4);
+      expect(res[0].is).toBe(4);
     });
-    it('...array entry, return same array', function(){
-      var args;
-      var res = db._normalizePredicate(args = [4]);
-      expect(res).toBe(args);
+    it('...expect normalize-conjunct to be called for each predicate member.', function(){
+      var pred = ['foo', 4, 5];
+      spyOn(db, '_normalizeConjunct');
+      
+      var c = db._normalizePredicate(pred);
+            
+      expect(db._normalizeConjunct.argsForCall.length).toBe(3);
+      
+      expect(db._normalizeConjunct.argsForCall[0][0]).toBe('foo');
+      expect(db._normalizeConjunct.argsForCall[1][0]).toBe(4);
+      expect(db._normalizeConjunct.argsForCall[2][0]).toBe(5);
     })
   });
   describe('eval-row', function(){
     it('...1 member row', function(){
       var r1 = new Row({foo:1});
-      expect(db._evalRow('foo', [1], r1)).toBe(true);
-      expect(db._evalRow('foo', [2], r1)).toBe(false);
+      expect(db._evalRow('foo', [{is:1}], r1)).toBe(true);
+      expect(db._evalRow('foo', [{is:2}], r1)).toBe(false);
     });
     it('...undefined subjects', function(){
       var r1 = new Row({foo:1});
-      expect(db._evalRow('boo', [123], r1)).toBe(false);
+      expect(db._evalRow('boo', [{is:123}], r1)).toBe(false);
     });
     it('...match second', function(){
       var r1 = new Row({foo:2, boo:'hi'});
-      expect(db._evalRow('foo', [1,2], r1)).toBe(true);
+      expect(db._evalRow('foo', [{is:1},{is:2}], r1)).toBe(true);
     });
   });
   describe('filter-rows', function(){
@@ -104,7 +118,7 @@ describe('DB', function(){
         expect(rows[0]).toBe(r1)
     });
     it('...match two', function(){
-        rows = db._filterRows('foo', [1,2], rows);
+        rows = db._filterRows('foo', [{is:1},{is:2}], rows);
         expect(rows[0]).toBe(r1)
         expect(rows[1]).toBe(r2)
         expect(rows[2]).toBe(undefined);
@@ -144,11 +158,11 @@ describe('DB', function(){
     var set = 
     skills.where( 
       chars.where({class:'wizzard'}).select(function(data){
-        return data.id;
+        return {id:data.id};
       })
     ).selectFirst('skills');
     
-    expect(set).toBe(ss1);
+    expect(set).toBe(ss2);
   });
   
   it('...update', function(){

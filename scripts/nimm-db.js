@@ -199,8 +199,8 @@
         else 
           item = _this.push(v);
         
-        for (var i in item.data)
-          if (_this.indexing.index[i])
+        for (var i in _this.indexing.index)
+          if (typeof item.data[i] != 'undefined')
           	_this.indexing.insert(item, i);
         
         _this.effected.push(item);
@@ -241,20 +241,6 @@
       
       return this;
     }
-    DB.prototype._normalizeQuery=function(query){
-      if (query instanceof Array === false)
-        query=[query];
-      return query;
-    }
-    DB.prototype._normalizeConjunct=function(conjunct){
-      if (typeof conjunct != 'object'){ /* Simple value. */
-        conjunct = {
-          is:conjunct
-        };
-      }
-      
-      return conjunct;
-    }
     DB.prototype._testConjunct=function(conjunct, value){
       var _this=this;
       var ret = true;
@@ -272,12 +258,38 @@
       }
       return ret;
     }
+    DB.prototype._normalizeQuery=function(query){
+      if (query instanceof Array === false)
+        query=[query];
+      return query;
+    }
+    DB.prototype._normalizeConjunct=function(conjunct){
+      if (typeof conjunct != 'object'){ /* Simple value. */
+        conjunct = {
+          is:conjunct
+        };
+      }
+      
+      return conjunct;
+    }
     DB.prototype._normalizePredicate=function(predicate){
-      if (predicate instanceof Array)
-        return predicate;
-      else
-        return [predicate];
+      var _this=this
+      ;
+      if (predicate instanceof Array === false)
+        predicate = [predicate];
+      
+      predicate = predicate.map(function(conjunct){
+        return _this._normalizeConjunct(conjunct);
+      });
+      return predicate;
+    }
+    DB.prototype._normalizeComplex=function(complex){
+      var _i
+      ;
+      for (_i in complex)
+        complex[_i] = this._normalizePredicate(complex[_i]);
         
+      return complex;
     }
     DB.prototype._testPredicate=function(predicate, value){
       var _this = this
@@ -285,7 +297,6 @@
       ;
       
       predicate.every(function(conjunct){
-        conjunct = _this._normalizeConjunct(conjunct);
         
         if (ret = _this._testConjunct(conjunct, value)){
           return false;
@@ -299,6 +310,7 @@
       return this._testPredicate(predicate, row.data[subject])
     }
     DB.prototype._initialMatches=function(complex,instance){
+      
       return this.toArray().filter(function(row){
         return row.__selected__!=instance;
       });
@@ -313,22 +325,25 @@
         }
       });
     }
-
-      
     DB.prototype.where=function(query){
       var _this=this
       ,instance = guid()
       ;
      
+      if (! query) {
+        this.selected = this.toArray();return this;
+      }
+
       query = this._normalizeQuery(query); 
 
       this.selected=[].concat.apply(
         []
         ,query.map(function(complex,i){ /* query = [complex || complex || complex] */
+          complex = _this._normalizeComplex(complex);
           var matches=_this._initialMatches(complex, instance);
           
           for (var subject in complex){ /* complex = {subject: predicate, subject: predicate} */
-            var predicate = _this._normalizePredicate( complex[subject] ); /* 4, [4], [4,3], [{isNumber:true, is:4}, 3] */
+            var predicate = complex[subject]; /* 4, [4], [4,3], [{isNumber:true, is:4}, 3] */
             matches = _this._filterRows(subject, predicate, matches);        
           }
           matches.forEach(function(row){
@@ -544,11 +559,15 @@
     return Indexing;
   })()
   
-  function guid() {
-    return (S4()+S4()+"-"+S4()+"-"+S4()+"-"+S4()+"-"+S4()+S4()+S4());
-    function S4() {
-      return (((1+Math.random())*0x10000)|0).toString(16).substring(1);
-    }
+  // function guid() {
+    // return (S4()+S4()+"-"+S4()+"-"+S4()+"-"+S4()+"-"+S4()+S4()+S4());
+    // function S4() {
+      // return (((1+Math.random())*0x10000)|0).toString(16).substring(1);
+    // }
+  // }
+  var _guid=0;
+  function guid(){
+    return _guid++;
   }
     
   module.exports={
