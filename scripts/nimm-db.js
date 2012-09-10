@@ -288,7 +288,7 @@
       ;
       for (_i in complex)
         complex[_i] = this._normalizePredicate(complex[_i]);
-        
+      
       return complex;
     }
     DB.prototype._testPredicate=function(predicate, value){
@@ -309,7 +309,51 @@
     DB.prototype._evalRow=function(subject, predicate, row){
       return this._testPredicate(predicate, row.data[subject])
     }
+    DB.prototype._getIndexed=function(subject, predicate, zit){
+      var _this=this, _ref, funct, cache=[]
+      ;
+	  
+	  if (this.indexing.index[subject]){ /* Indexing for this subject exists. */
+	  	predicate.forEach(function(predicateBit){
+	  	  cache=[];
+	  	  for (funct in predicateBit){
+	  	  	/* >> Currently indexes are hard-coded but in future 
+	  	  	 * there may be a system handling these things dinamically. << */
+	  	  	
+	  	  	// switch (funct) {
+	  	  	  // case 'is':
+	  	  	    // var arg, _ref2, _ref3;
+	  	  	    // if (  typeof (arg = predicateBit[funct]) == 'string' 
+	  	  	          // && (_ref2 = _this.indexing.index[subject][IndexingType.STRING])
+	  	  	          // && (_ref3 = _ref2[arg]))
+	  	  	      // if (typeof zit != 'undefined') /* Match on zit. */
+	  	  	      	// cache = cache.concat(_ref3.filter(function(row){
+	  	  	      	  // if (row.__zit__===zit)
+	  	  	      	    // return true;
+	  	  	      	// }));
+	  	  	      // else
+	  	  	        // cache = cache.concat(_ref3);
+	  	  	    // break;
+	  	  	// }
+	  	  	
+	  	  }
+	  	});
+	  }
+    	
+      return cache;
+    }
     DB.prototype._initialMatches=function(complex,instance){
+      var _this=this
+      ,matches=[], zit, _i
+      ;
+      
+      for (_i in complex){ /* Foreach subject examine predicates and extract indexed properties. */
+      	matches = this._getIndexed(_i, complex[_i], zit);
+      	zit=guid();
+      	matches.forEach(function(row){
+      		row.__zit__=zit;
+      	});
+      }
       
       return this.toArray().filter(function(row){
         return row.__selected__!=instance;
@@ -406,13 +450,7 @@
     }
     return Row;
   })();
-  var IndexingType=(function(){
-    function IndexingType(){}
-    IndexingType.STRING_INDEX = IndexingType.STRING = 'string-index';
-    IndexingType.NUMBER_INDEX = IndexingType.NUMBER = 'number-index';
-    IndexingType.RANGE_INDEX = IndexingType.RANGE = 'range-index';
-    return IndexingType;
-  })();
+  
   var Indexing=(function(){
     function Indexing(b){
       this.base=b;
@@ -423,35 +461,49 @@
     Indexing.prototype.index=null;
     
     
-    Indexing.prototype.setIndex=function(subject, type){
+    Indexing.prototype.setIndex=function(subject, fn){
       var _this=this
       ;
-      if (this.index[subject] && this.index[subject][type]) /* Index already exists. */
-        return false;
+      
+      if (! Indexing.test[fn])
+        throw 'Index not defined.';
         
+      
       if (! this.index[subject])
       	this.index[subject]={__length__:0};
-      if (! this.index[subject][type]){
-        this.index[subject][type]={__length__:0};
+      	
+      if (! this.index[subject][fn]){
+        this.index[subject][fn] = new Indexing.test[fn](guid());
         this.index[subject].__length__++;
       }
 
-      var rows=this.base.where().selected;
+	  var indexObject;
+	  indexObject = this.index[subject][fn];
+
+      var rows=this.base.toArray();
       rows.forEach(function(row){
-        _this._updateIndex(type, row, subject, row.data[subject] );
+      	var val;
+      	if (! (val=row.data[subject]))
+      	  return;        
+        
+        indexObject.set(row, val, oldval);
       });
 
       return true;
     }
-    Indexing.prototype.unsetIndex=function(subject, type){
+    Indexing.prototype.unsetIndex=function(subject, fn){
       var _this=this
       ;
-      if (! (this.index[subject] && this.index[subject][type]))
+      
+      if (! Indexing.test[fn])
+        throw 'Index not defined.';
+      
+      if (! (this.index[subject] && this.index[subject][fn]))
         return false;
 
-	  var rows = this.base.where().selected;
+	  var rows = this.base.toArray();
 	  rows.forEach(function(row){
-	  	_this._updateIndex(type, row, subject, undefined, row.data[subject])
+	  	_this.index[subject][fn].unset(row);
 	  });
 	  
 	  return true;
@@ -459,112 +511,98 @@
     Indexing.prototype.update=function(row,subject,value,oldVal){
     	oldVal = typeof oldVal!='undefined' ? oldVal : row.data[subject];
     	
+    	if (oldVal===value)
+    	  return false;
+    	
     	if (! this.index[subject])
     	  throw 'Non existing subject.';
     	
-    	for (var type in this.index[subject]) {
-    	  if (type.search(/^__/)!==-1) continue;
-    	  this._updateIndex(type, row, subject, value, oldVal);
+    	var fn;
+    	for (fn in this.index[subject]) {
+    	  if (fn.search(/^__/)!==-1) continue;
+    	  
+    	  this.index[subject][fn].unset(row);
+    	  this.index[subject][fn].set(row, value);
     	}
     }
     Indexing.prototype.insert=function(row,subject){
     	if (! this.index[subject])
     	  throw 'Non existing subject.';
     	
-    	for (var type in this.index[subject]) {
+    	for (var fn in this.index[subject]) {
     	  if (type.search(/^__/)!==-1) continue;
-    	  this._updateIndex(type, row, subject, row.data[subject] );
+    	  
+    	  this.index[subject][fn].set(row, value);
     	}
-    }
-    Indexing.prototype._updateIndex=function(type,row,subject,value,oldVal){
-      var _this=this;
-      switch(type){
-        case IndexingType.STRING_INDEX:
-          string(type,row,subject,value,oldVal);break;
-        case IndexingType.NUMBER_INDEX:
-          number(type,row,subject,value,oldVal);break;
-        case IndexingType.RANGE_INDEX:
-          range(type,row,subject,value,oldVal);break;
-      }
-      function string(type,row,subject,value,oldVal){
-        var index,oldVal,len;
-
-        if (  typeof oldVal != 'undefined' && 
-              row.__index__ &&
-              row.__index__[subject] && 
-              typeof (index=row.__index__[subject][type]) != 'undefined' ){ /* Rid the old index. */
-          
-          if (typeof _this.index[subject][type][oldVal] == 'undefined') /* Ensure old value is valid. */
-            throw 'Old value not found in index.';
-            
-          _this.index[subject][type][oldVal].splice(index,1);
-          
-          for (var i=index; i < _this.index[subject][type][oldVal].length; i++) /* Update subsequent back-references in collection. */
-            _this.index[subject][type][oldVal][i].__index__[subject][type]=i;
-          
-          if (_this.index[subject][type][oldVal].length==0){ /* Remove possible empty indexing blocks. */
-            delete _this.index[subject][type][oldVal];
-            _this.index[subject][type].__length__--;
-            if (_this.index[subject][type].__length__==0) {
-              delete _this.index[subject][type];              
-              _this.index[subject].__length__--;
-              if (_this.index[subject].__length__==0)
-                delete _this.index[subject];
-            }
-          }
-            
-          delete row.__index__[subject][type]; /* Remove possible empty back references. */
-          row.__index__[subject].__length__--;
-          if (row.__index__[subject].__length__==0) {
-            delete row.__index__[subject];
-            row.__index__.__length__--;
-            if (row.__index__.__length__==0)
-              delete row.__index__;
-          }
-
-        }
-        
-        if (typeof value != 'string')
-          return;
-        
-        if (! _this.index[subject]) /* Add index. */
-          _this.index[subject]={__length__:0};
-        if (! _this.index[subject][type]) {
-          _this.index[subject][type]={__length__:0};
-          _this.index[subject].__length__++;
-        }
-        if (! _this.index[subject][type][value]) {
-          _this.index[subject][type][value]=[];
-          _this.index[subject][type].__length__++;
-        }
-        _this.index[subject][type][value].push(row);
-
-        if (! row.__index__) /* Back reference from row. */
-          row.__index__={__length__:0};
-        if (! row.__index__[subject]) {
-          row.__index__[subject]={__length__:0};
-          row.__index__.__length__++;
-        }
-        row.__index__[subject][type] = _this.index[subject][type][value].length-1;
-        row.__index__[subject].__length__++;
-      }
-      function number(type,row,subject,value,oldVal){
-
-      }
-      function range(type,row,subject,value,oldVal){
-        
-      }
     }
     
     return Indexing;
-  })()
+  })();
   
-  // function guid() {
-    // return (S4()+S4()+"-"+S4()+"-"+S4()+"-"+S4()+"-"+S4()+S4()+S4());
-    // function S4() {
-      // return (((1+Math.random())*0x10000)|0).toString(16).substring(1);
-    // }
-  // }
+  var IndexObject;
+  IndexObject=(function(){
+  	function IndexObject(g){
+  	  this.guid=g;
+  	}
+  	IndexObject.prototype.guid=null;
+  	IndexObject.prototype.refArray='__' + guid() + '__';
+  	IndexObject.prototype.refIndex='__' + guid() + '__';
+  	IndexObject.prototype.set=function(){}
+  	IndexObject.prototype.unset=function(row){
+  	  var col;
+  	  if (! (col = row[this.guid + this.refArray]))
+  	    return;
+  	  index = row[this.guid + this.refIndex];
+  	  
+  	  col.splice(index,1);
+  	  
+  	  delete row[this.guid + this.refArray];
+  	  delete row[this.guid + this.refIndex];
+  	}
+  	IndexObject.prototype.get=function(){}
+  	return IndexObject;
+  })();
+  
+  Indexing.test={
+  	is: (function(){
+  		__extends(is, IndexObject);
+  		function is(g){
+  		  is.__super__.constructor.call(this,g);
+  		  this.cache={};
+  		}
+  		is.prototype.cache=null;
+  		is.prototype.refName='__' + guid() + '__';
+  		is.prototype.set=function(row, val){
+   		  if (! this.cache[val])
+   		    this.cache[val]=[];
+   		  
+   		  this.cache[val].push(row);
+   		  var index;
+   		  index = this.cache[val].length-1;
+   		  
+   		  row[this.guid + this.refArray] = this.cache[val];
+   		  row[this.guid + this.refIndex] = index;
+   		  row[this.guid + this.refName] = val;
+   		  
+   		  is.__super__.set.call(this,row,val);
+  		}
+  		is.prototype.unset=function(row){
+  		  var col;
+  		  col = row[this.guid + this.refArray];
+  		  
+  		  is.__super__.unset.call(this,row);
+  		  
+  		  if (col.length==0)
+  		    delete this.cache[row[this.guid + this.refName]];
+  		  delete row[this.guid + this.refName];
+  		}
+  		is.prototype.get=function(val){
+  		  return this.cache[val];
+  		}
+  		return is;
+  	})()
+  };
+  
   var _guid=0;
   function guid(){
     return _guid++;
