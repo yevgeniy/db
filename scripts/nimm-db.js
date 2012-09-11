@@ -486,10 +486,8 @@
       	if (! (val=row.data[subject]))
       	  return;        
         
-        indexObject.set(row, val, oldval);
+        indexObject.set(row, val);
       });
-
-      return true;
     }
     Indexing.prototype.unsetIndex=function(subject, fn){
       var _this=this
@@ -497,16 +495,19 @@
       
       if (! Indexing.test[fn])
         throw 'Index not defined.';
-      
+              
       if (! (this.index[subject] && this.index[subject][fn]))
         return false;
 
 	  var rows = this.base.toArray();
+	  
 	  rows.forEach(function(row){
+	  	if (typeof row.data[subject] == 'undefined')
+	  	  return;
+	  	  
 	  	_this.index[subject][fn].unset(row);
 	  });
 	  
-	  return true;
     }
     Indexing.prototype.update=function(row,subject,value,oldVal){
     	oldVal = typeof oldVal!='undefined' ? oldVal : row.data[subject];
@@ -525,14 +526,14 @@
     	  this.index[subject][fn].set(row, value);
     	}
     }
-    Indexing.prototype.insert=function(row,subject){
+    Indexing.prototype.insert=function(row, subject){
     	if (! this.index[subject])
     	  throw 'Non existing subject.';
     	
     	for (var fn in this.index[subject]) {
     	  if (type.search(/^__/)!==-1) continue;
     	  
-    	  this.index[subject][fn].set(row, value);
+    	  this.index[subject][fn].set(row, row.data[subject]);
     	}
     }
     
@@ -612,6 +613,6 @@
     DB:DB,
     Row:Row,
     Indexing:Indexing,
-    IndexingType:IndexingType
+    IndexObject:IndexObject
   }  
 })();
