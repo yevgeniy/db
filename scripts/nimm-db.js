@@ -1,4 +1,5 @@
 (function(){
+  var isCommonJS = typeof window == "undefined";
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
   var _guid=0;
   
@@ -135,9 +136,7 @@
       var i
       ,row = this._push(new Row(d))
       ;
-      
-      // for(i in row.data)
-          // this._updateIndex(row,i,row.data[i]);
+
       return row; 
     }
     DB.prototype.unshift=function(d){
@@ -299,9 +298,9 @@
       
       predicate.every(function(conjunct){
         
-        if (ret = _this._testConjunct(conjunct, value)){
+        if (ret = _this._testConjunct(conjunct, value))
           return false;
-        } else
+        else
           return true;
       });
       
@@ -316,28 +315,16 @@
 	  
 	  if (this.indexing.index[subject]){ /* Indexing for this subject exists. */
 	  	predicate.forEach(function(predicateBit){
-	  	  cache=[];
-	  	  for (funct in predicateBit){
-	  	  	/* >> Currently indexes are hard-coded but in future 
-	  	  	 * there may be a system handling these things dinamically. << */
+	  	  for (fn in _this.indexing.index[subject]) {
+	  	  	if (fn.search(/^__/)!==-1) continue;
 	  	  	
-	  	  	// switch (funct) {
-	  	  	  // case 'is':
-	  	  	    // var arg, _ref2, _ref3;
-	  	  	    // if (  typeof (arg = predicateBit[funct]) == 'string' 
-	  	  	          // && (_ref2 = _this.indexing.index[subject][IndexingType.STRING])
-	  	  	          // && (_ref3 = _ref2[arg]))
-	  	  	      // if (typeof zit != 'undefined') /* Match on zit. */
-	  	  	      	// cache = cache.concat(_ref3.filter(function(row){
-	  	  	      	  // if (row.__zit__===zit)
-	  	  	      	    // return true;
-	  	  	      	// }));
-	  	  	      // else
-	  	  	        // cache = cache.concat(_ref3);
-	  	  	    // break;
-	  	  	// }
-	  	  	
+	  	    cache = cache.concat(
+	  	      _this.indexing.index[subject][fn].get( predicateBit[fn] ).filter(function(row){
+	  	      	return row.__zit__==zit;
+	  	      })
+			);
 	  	  }
+	  	 
 	  	});
 	  }
     	
@@ -548,7 +535,7 @@
   var IndexObject;
   IndexObject=(function(){
   	function IndexObject(g){
-  	  this.guid=g;
+  	  this.guid='__' + g + '__';
   	}
   	IndexObject.prototype.guid=null;
   	IndexObject.prototype.refArray='__' + guid() + '__';
@@ -610,10 +597,14 @@
     return _guid++;
   }
     
+  
   module.exports={
     DB:DB,
     Row:Row,
     Indexing:Indexing,
     IndexObject:IndexObject
-  }  
+  }
+  if (! isCommonJS)
+    for (var _i in module.exports)
+      window[_i] = module.exports[_i];  
 })();

@@ -153,24 +153,29 @@ describe('DB', function(){
   		expect(o1.__zit__ === o2.__zit__).toBe(true);
   	})
   });
-  // describe('get-indexed', function(){
-  	// var subject, predicate;
-  	// beforeEach(function(){
-  	  // subject='class';
-//   	  
-  	  // predicate=[{is:'knight', isLeader:true}, {is:'wizzard', isAlive:true}]
-//   	  
-  	  // db.indexing.setIndex('class', IndexingType.STRING)
-  	  // db.insert([
-  	  	// {class:'ninja', race:'human'},
-  	  	// {class:'wizzard', race:'ork'},
-  	  	// {class:'knight', race:'human'}
-  	  // ]);
-  	// })
-  	// it('...', function(){
-  		// db._getIndexed(subject, predicate);
-  	// })
-  // })
+  describe('get-indexed', function(){
+  	var subject, predicate;
+  	beforeEach(function(){
+  	  subject='class';
+  	  
+  	  predicate=[{is:'knight', isLeader:true}, {is:'wizzard', isAlive:true}]
+  	  
+  	  db.indexing.setIndex('class', 'is')
+  	  db.indexing.setIndex('race', 'is')
+  	  db.insert([
+  	  	{class:'ninja', race:'human', lvl:15},
+  	  	{class:'wizzard', race:'ork'},
+  	  	{class:'knight', race:'human'}
+  	  ]);
+  	})
+  	it('...', function(){
+  		var res = db._getIndexed(subject, predicate);
+  		expect(res.length).toBe(2);
+  		expect(res.indexOf(db.first.next)===-1).toBe(false);
+  		expect(res.indexOf(db.first.next.next)===-1).toBe(false);
+  		
+  	})
+  })
   it('...where',function(){
     var r1 = new Row({class:'wizard', race:'human'});
     var r2 = new Row({class:'knight', race:'human'});
