@@ -1,6 +1,7 @@
 (function(){
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
-
+  var _guid=0;
+  
   var List = (function() {
 
     function List() {
@@ -212,7 +213,7 @@
       if (subject)
         if (row.data[subject]!==newValue){
           if (this.indexing.index[subject])
-          	this.indexing.update(row, subject, newValue);
+          	this.indexing.update(row, subject, newValue, row.data[subject]);
           row.data[subject]=newValue;
         }
     }
@@ -508,6 +509,10 @@
 	  	_this.index[subject][fn].unset(row);
 	  });
 	  
+	  delete this.index[subject][fn];
+	  this.index[subject].__length__--;
+	  if (this.index[subject].__length__==0)
+	    delete this.index[subject];
     }
     Indexing.prototype.update=function(row,subject,value,oldVal){
     	oldVal = typeof oldVal!='undefined' ? oldVal : row.data[subject];
@@ -531,7 +536,7 @@
     	  throw 'Non existing subject.';
     	
     	for (var fn in this.index[subject]) {
-    	  if (type.search(/^__/)!==-1) continue;
+    	  if (fn.search(/^__/)!==-1) continue;
     	  
     	  this.index[subject][fn].set(row, row.data[subject]);
     	}
@@ -549,17 +554,7 @@
   	IndexObject.prototype.refArray='__' + guid() + '__';
   	IndexObject.prototype.refIndex='__' + guid() + '__';
   	IndexObject.prototype.set=function(){}
-  	IndexObject.prototype.unset=function(row){
-  	  var col;
-  	  if (! (col = row[this.guid + this.refArray]))
-  	    return;
-  	  index = row[this.guid + this.refIndex];
-  	  
-  	  col.splice(index,1);
-  	  
-  	  delete row[this.guid + this.refArray];
-  	  delete row[this.guid + this.refIndex];
-  	}
+  	IndexObject.prototype.unset=function(row){}
   	IndexObject.prototype.get=function(){}
   	return IndexObject;
   })();
@@ -585,13 +580,18 @@
    		  row[this.guid + this.refIndex] = index;
    		  row[this.guid + this.refName] = val;
    		  
-   		  is.__super__.set.call(this,row,val);
   		}
   		is.prototype.unset=function(row){
   		  var col;
-  		  col = row[this.guid + this.refArray];
-  		  
-  		  is.__super__.unset.call(this,row);
+  		  if (! (col = row[this.guid + this.refArray]))
+	  	    return false;
+	  	  
+	  	  index = row[this.guid + this.refIndex];
+	  	  
+	  	  col.splice(index,1);
+	  	  
+	  	  delete row[this.guid + this.refArray];
+	  	  delete row[this.guid + this.refIndex];
   		  
   		  if (col.length==0)
   		    delete this.cache[row[this.guid + this.refName]];
@@ -600,11 +600,12 @@
   		is.prototype.get=function(val){
   		  return this.cache[val];
   		}
+  		
   		return is;
   	})()
   };
   
-  var _guid=0;
+  
   function guid(){
     return _guid++;
   }
